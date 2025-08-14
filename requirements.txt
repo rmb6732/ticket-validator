@@ -1,0 +1,7 @@
+streamlit==1.47.1
+polars==1.31.0
+pandas==2.3.1
+xlsxwriter==3.2.5
+pygwalker==0.4.9.15
+xlsx2csv==0.8.4
+fastexcel==0.14.0
