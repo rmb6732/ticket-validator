@@ -177,25 +177,25 @@ def main():
             fig.update_layout(
                 title=dict(
                     text="Validation Distribution",
-                    x=0.475, y=0.95,
+                    x=0.5, y=0.95,
                     xanchor="center",
                     yanchor="top",
                     font=dict(size=30, color="black", family="Arial")
                 ),
                 autosize=True,
                 height=560,
-                margin=dict(t=140, b=40, l=40, r=40),
-                legend=dict(orientation="v", y=1, x=1.0, xanchor="left")
+                margin=dict(t=140, b=40, l=10, r=40),
+                legend=dict(orientation="v", y=1, x=0.6, xanchor="left")
             )
 
             fig.update_layout(annotations=[
-                dict(text=f"<span style='font-size:25px;'><b>VALID</b></span><br><br><span style='font-size:45px;'>{values[0]}</span>",
+                dict(text=f"<span style='font-size:23px;'><b>VALID</b></span><br><br><span style='font-size:40px;'>{values[0]}</span>",
                      x=0.25, y=1.22, xref="paper", yref="paper",
                      showarrow=False, align="center", font=dict(size=16, color="black")),
-                dict(text=f"<span style='font-size:25px;'><b>INVALID</b></span><br><br><span style='font-size:45px;'>{values[1]}</span>",
+                dict(text=f"<span style='font-size:23px;'><b>INVALID</b></span><br><br><span style='font-size:40px;'>{values[1]}</span>",
                      x=0.50, y=1.22, xref="paper", yref="paper",
                      showarrow=False, align="center", font=dict(size=16, color="black")),
-                dict(text=f"<span style='font-size:25px;'><b>NOT IN NMS</b></span><br><br><span style='font-size:45px;'>{values[2]}</span>",
+                dict(text=f"<span style='font-size:23px;'><b>NOT IN NMS</b></span><br><br><span style='font-size:40px;'>{values[2]}</span>",
                      x=0.75, y=1.22, xref="paper", yref="paper",
                      showarrow=False, align="center", font=dict(size=16, color="black")),
             ])
