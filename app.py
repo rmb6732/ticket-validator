@@ -2,6 +2,7 @@ import streamlit as st
 import polars as pl
 import pandas as pd
 import io
+import plotly.express as px
 from pygwalker.api.streamlit import init_streamlit_comm, StreamlitRenderer
 import streamlit.user_info
 
@@ -126,6 +127,83 @@ def main():
         mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
+    # PIE CHART & TABULAR
+    df = st.session_state.df_pandas
+    tab_pie, tab_tabular = st.tabs(["PIE CHART", "TABULAR"])
+
+    if "VALIDATION" not in df.columns:
+        with tab_pie:
+            st.warning("No `VALIDATION` column found. Make sure the pipeline creates it first.")
+        with tab_tabular:
+            st.info("Tabular view coming soon.")
+    else:
+        order = ["VALID", "INVALID", "NOT IN NMS"]
+        counts = (
+            df["VALIDATION"].value_counts(dropna=False)
+            .reindex(order)
+            .fillna(0)
+            .astype(int)
+        )
+
+        with tab_pie:
+            order = ["VALID", "INVALID", "NOT IN NMS"]
+            counts = (
+                df["VALIDATION"].value_counts(dropna=False)
+                .reindex(order)
+                .fillna(0)
+                .astype(int)
+            )
+            values = [int(counts.get(k, 0)) for k in order]
+
+            fig = px.pie(
+                names=order,
+                values=values,
+                hole=0,
+                color=order,
+                color_discrete_map={
+                    "VALID": "green",
+                    "INVALID": "orange",
+                    "NOT IN NMS": "blue"
+                }
+            )
+
+            fig.update_traces(
+                textinfo="label+percent",
+                textposition="inside",
+                insidetextfont=dict(size=14, color="white")
+            )
+
+            fig.update_layout(
+                title=dict(
+                    text="Validation Distribution",
+                    x=0.475, y=0.95,
+                    xanchor="center",
+                    yanchor="top",
+                    font=dict(size=30, color="black", family="Arial")
+                ),
+                autosize=True,
+                height=560,
+                margin=dict(t=140, b=40, l=40, r=40),
+                legend=dict(orientation="v", y=1, x=1.0, xanchor="left")
+            )
+
+            fig.update_layout(annotations=[
+                dict(text=f"<span style='font-size:25px;'><b>VALID</b></span><br><br><span style='font-size:45px;'>{values[0]}</span>",
+                     x=0.25, y=1.22, xref="paper", yref="paper",
+                     showarrow=False, align="center", font=dict(size=16, color="black")),
+                dict(text=f"<span style='font-size:25px;'><b>INVALID</b></span><br><br><span style='font-size:45px;'>{values[1]}</span>",
+                     x=0.50, y=1.22, xref="paper", yref="paper",
+                     showarrow=False, align="center", font=dict(size=16, color="black")),
+                dict(text=f"<span style='font-size:25px;'><b>NOT IN NMS</b></span><br><br><span style='font-size:45px;'>{values[2]}</span>",
+                     x=0.75, y=1.22, xref="paper", yref="paper",
+                     showarrow=False, align="center", font=dict(size=16, color="black")),
+            ])
+
+            st.plotly_chart(fig, use_container_width=True)
+
+        with tab_tabular:
+            st.info("Tabular view coming soon.")
+
     st.markdown("---")
     st.subheader("🧠 Explore Your Data (Interactive)")
     pyg_app = StreamlitRenderer(st.session_state.df_pandas)
@@ -134,4 +212,3 @@ def main():
 
 if __name__ == '__main__':
     main()
-
