@@ -29,7 +29,7 @@ def process_tickets(daily_file, tickets_file):
 
     daily_tickets = daily_tickets.with_columns(
         pl.col('short_description')
-        .str.extract(r"\)\s*([A-Za-z0-9]+)")
+        .str.extract(r"\)\s*([A-Za-z0-9_]+)")
         .str.strip_chars()
         .alias('site_code')
     )
