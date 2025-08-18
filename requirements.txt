@@ -5,3 +5,4 @@ xlsxwriter==3.2.5
 pygwalker==0.4.9.15
 xlsx2csv==0.8.4
 fastexcel==0.14.0
+plotly==5.24.1
