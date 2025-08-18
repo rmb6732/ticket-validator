@@ -84,17 +84,18 @@ def process_tickets(daily_file, tickets_file):
         'ALARMS', 'VALIDATION', 'START TIME', 'SITE CODE'
     ]).collect()
 
-    get_unique(final_set)
     return final_set.to_pandas()
 
+
 def get_unique(df):
+    df = pl.from_pandas(df)
     grouped = (
             df.lazy().group_by('SITE CODE')
             .agg(pl.len().alias('Alarm Count'))
-            .filter(pl.col('Alarm Count') > 1)
             .sort('Alarm Count', descending=True)
     ).collect()
-    print(grouped)
+    return grouped.to_pandas()
+
 
 def main():
     st.set_page_config(page_title="Ticket Validator", layout="wide")
@@ -213,6 +214,8 @@ def main():
 
         with tab_tabular:
             st.info("Tabular view coming soon.")
+            tabular = get_unique(df)
+            print(tabular)
 
     st.markdown("---")
     st.subheader("🧠 Explore Your Data (Interactive)")
