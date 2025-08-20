@@ -16,6 +16,10 @@ def validate_csv(uploaded_file, required_cols):
         raise ValueError(f"{uploaded_file.name} is not a valid .csv file.")
 
     df = pl.read_csv(uploaded_file).lazy()
+    trimmed_names = {col: col.strip() for col in df.columns}
+    df = df.rename(trimmed_names)
+
+
     col_names = [c.lower().strip() for c in df.collect_schema().names()]
     missing_cols = [col for col in required_cols if col.lower() not in col_names]
     if missing_cols:
@@ -25,8 +29,8 @@ def validate_csv(uploaded_file, required_cols):
 
 
 def process_tickets(daily_file, tickets_file):
-    daily_tickets = validate_csv(daily_file, ['short_description'])
-    tickets = validate_csv(tickets_file, ['Controlling Object Name', 'Origin Alarm Time', 'Alarm Text'])
+    daily_tickets = validate_csv(daily_file, ['short_description', 'ALARMS'])
+    tickets = validate_csv(tickets_file, ['Controlling Object Name', 'Alarm Time', 'Alarm Text'])
 
     daily_tickets = daily_tickets.with_columns(
         pl.col('short_description')
@@ -37,7 +41,7 @@ def process_tickets(daily_file, tickets_file):
 
     spliced = tickets.select([
         pl.col('Controlling Object Name').str.strip_chars().alias('site_code'),
-        pl.col('Origin Alarm Time').str.strptime(pl.Datetime, '%Y-%m-%d %H:%M:%S %z').alias('START TIME'),
+        pl.col('Alarm Time').str.strptime(pl.Datetime, '%Y-%m-%d %H:%M:%S').alias('START TIME'),
         pl.col('Alarm Text')
     ])
 
@@ -60,13 +64,6 @@ def process_tickets(daily_file, tickets_file):
         .otherwise(pl.lit('INVALID'))
         .alias('VALIDATION')
     ])
-
-    merged = merged.with_columns(
-        pl.col('START TIME')
-        .dt.convert_time_zone('+08:00')
-        .dt.strftime('%Y-%m-%d %H:%M:%S %:z')
-        .alias('START TIME')
-    )
 
     merged = merged.with_columns([
         pl.when(pl.col('VALIDATION') == 'INVALID')
