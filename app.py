@@ -26,7 +26,7 @@ def validate_csv(uploaded_file, required_cols):
 
 def process_tickets(daily_file, tickets_file):
     daily_tickets = validate_csv(daily_file, ['short_description'])
-    tickets = validate_csv(tickets_file, ['Controlling Object Name', 'Alarm Time', 'Alarm Text'])
+    tickets = validate_csv(tickets_file, ['Controlling Object Name', 'Origin Alarm Time', 'Alarm Text'])
 
     daily_tickets = daily_tickets.with_columns(
         pl.col('short_description')
@@ -37,7 +37,7 @@ def process_tickets(daily_file, tickets_file):
 
     spliced = tickets.select([
         pl.col('Controlling Object Name').str.strip_chars().alias('site_code'),
-        pl.col('Alarm Time').str.strptime(pl.Datetime, '%Y-%m-%d %H:%M:%S').alias('START TIME'),
+        pl.col('Origin Alarm Time').str.strptime(pl.Datetime, '%Y-%m-%d %H:%M:%S %z').alias('START TIME'),
         pl.col('Alarm Text')
     ])
 
@@ -154,6 +154,13 @@ def main():
         )
 
         with tab_pie:
+            
+            dark_mode = st.toggle("🌙 Dark Mode", value=False)
+
+            text_color = "white" if dark_mode else "black"
+            bg_color = "black" if dark_mode else "white"
+            grid_color = "#444" if dark_mode else "#ddd"
+
             order = ["VALID", "INVALID", "NOT IN NMS"]
             counts = (
                 df["VALIDATION"].value_counts(dropna=False)
@@ -178,7 +185,9 @@ def main():
             fig.update_traces(
                 textinfo="label+percent",
                 textposition="inside",
-                insidetextfont=dict(size=14, color="white")
+                insidetextfont=dict(size=14, color="white"),
+                hoverinfo="skip",
+                hovertemplate=None
             )
 
             fig.update_layout(
@@ -187,32 +196,81 @@ def main():
                     x=0.5, y=0.95,
                     xanchor="center",
                     yanchor="top",
-                    font=dict(size=30, color="black", family="Arial")
+                    font=dict(size=30, color=text_color, family="Arial")
                 ),
                 autosize=True,
                 height=560,
                 margin=dict(t=140, b=40, l=10, r=40),
-                legend=dict(orientation="v", y=1, x=0.6, xanchor="left")
+                legend=dict(orientation="v", y=1, x=0.6, xanchor="left", font=dict(color=text_color)
+                ),
+                paper_bgcolor=bg_color,
+                plot_bgcolor=bg_color
+                
             )
+
+            for ann in fig.layout.annotations:
+                ann.font.color = text_color
 
             fig.update_layout(annotations=[
                 dict(text=f"<span style='font-size:23px;'><b>VALID</b></span><br><br><span style='font-size:40px;'>{values[0]}</span>",
                      x=0.25, y=1.22, xref="paper", yref="paper",
-                     showarrow=False, align="center", font=dict(size=16, color="black")),
+                     showarrow=False, align="center", font=dict(size=16, color=text_color)),
                 dict(text=f"<span style='font-size:23px;'><b>INVALID</b></span><br><br><span style='font-size:40px;'>{values[1]}</span>",
                      x=0.50, y=1.22, xref="paper", yref="paper",
-                     showarrow=False, align="center", font=dict(size=16, color="black")),
+                     showarrow=False, align="center", font=dict(size=16, color=text_color)),
                 dict(text=f"<span style='font-size:23px;'><b>NOT IN NMS</b></span><br><br><span style='font-size:40px;'>{values[2]}</span>",
                      x=0.75, y=1.22, xref="paper", yref="paper",
-                     showarrow=False, align="center", font=dict(size=16, color="black")),
+                     showarrow=False, align="center", font=dict(size=16, color=text_color)),
             ])
 
             st.plotly_chart(fig, use_container_width=True)
 
         with tab_tabular:
-            st.info("Tabular view coming soon.")
             tabular = get_unique(df)
-            print(tabular)
+
+            col1, col2, col3, col4 = st.columns([1.5, 1.5, 3, 1])
+ 
+            with col1:
+                sort_column = st.selectbox(
+                "Sort by column:",
+                options=tabular.columns, 
+                index=0, 
+                label_visibility="visible"
+            )
+
+            with col2:
+                sort_order = st.radio(
+                "Order:",
+                options=["Ascending", "Descending"],
+                horizontal=True
+            )
+            
+            with col3:
+                search_query = st.text_input(
+                "Search by Site code or Alarm Count:",
+                value="",
+                label_visibility="visible"
+            )
+                
+            with col4:
+                with st.container():
+                    st.markdown("<div style='padding-top: 1.8rem;'></div>", unsafe_allow_html=True)
+                    clear_search = st.button("Clear Search")
+
+            if clear_search:
+                search_query = ""
+
+            if search_query:
+                search_query = search_query.strip().lower()
+                tabular = tabular[
+                    tabular["SITE CODE"].astype(str).str.lower().str.contains(search_query)
+                    | tabular["Alarm Count"].astype(str).str.contains(search_query)
+            ]
+
+            ascending = sort_order == "Ascending"
+            sorted_tabular = tabular.sort_values(by=sort_column, ascending=ascending)
+
+            st.dataframe(sorted_tabular, use_container_width=True)
 
     st.markdown("---")
     st.subheader("🧠 Explore Your Data (Interactive)")
