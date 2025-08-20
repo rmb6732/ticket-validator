@@ -98,6 +98,47 @@ def main():
     st.set_page_config(page_title="Ticket Validator", layout="wide")
     init_streamlit_comm()
 
+    st.markdown("""
+    <style>
+    /* Center align headers and content for the tabular data */
+    .stDataFrame [data-testid='stDataFrame'] table {
+        width: 100%;
+    }
+    
+    .stDataFrame [data-testid='stDataFrame'] th,
+    .stDataFrame [data-testid='stDataFrame'] td {
+        text-align: center !important;
+    }
+    
+    /* Specifically target the SITE CODE and Alarm Count columns */
+    div[data-testid="stDataFrame"] td:nth-child(2),
+    div[data-testid="stDataFrame"] th:nth-child(2) {
+        text-align: center !important;
+    }
+    
+    div[data-testid="stDataFrame"] td:nth-child(3),
+    div[data-testid="stDataFrame"] th:nth-child(3) {
+        text-align: center !important;
+    }
+    
+    /* Style the pie chart annotations */
+    .pie-annotation {
+        text-align: center;
+        font-weight: bold;
+    }
+    
+    /* Style the file uploader section */
+    .stFileUploader {
+        text-align: center;
+    }
+    
+    /* Center the main title */
+    h1 {
+        text-align: center;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
     st.title("🎫 Ticket Validation Tool")
     st.markdown("Upload **Daily Tickets** and **Tickets** CSV files to process validation.")
 
