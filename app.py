@@ -16,7 +16,7 @@ def validate_csv(uploaded_file, required_cols):
         raise ValueError(f"{uploaded_file.name} is not a valid .csv file.")
 
     df = pl.read_csv(uploaded_file).lazy()
-    col_names = [c.lower() for c in df.collect_schema().names()]
+    col_names = [c.lower().strip() for c in df.collect_schema().names()]
     missing_cols = [col for col in required_cols if col.lower() not in col_names]
     if missing_cols:
         raise ValueError(f"❌ Missing required columns: {', '.join(missing_cols)}")
@@ -26,7 +26,7 @@ def validate_csv(uploaded_file, required_cols):
 
 def process_tickets(daily_file, tickets_file):
     daily_tickets = validate_csv(daily_file, ['short_description'])
-    tickets = validate_csv(tickets_file, ['Controlling Object Name', 'Origin Alarm Time', 'Alarm Text'])
+    tickets = validate_csv(tickets_file, ['Controlling Object Name', 'Alarm Time', 'Alarm Text'])
 
     daily_tickets = daily_tickets.with_columns(
         pl.col('short_description')
@@ -37,13 +37,10 @@ def process_tickets(daily_file, tickets_file):
 
     spliced = tickets.select([
         pl.col('Controlling Object Name').str.strip_chars().alias('site_code'),
-        # UNCOMMENT LATER -- pl.col('Alarm Time').str.strptime(pl.Datetime, '%Y-%m-%d %H:%M:%S').alias('START TIME'),
-        pl.col('Origin Alarm Time').str.strptime(pl.Datetime, '%Y-%m-%d %H:%M:%S %z').alias('START TIME'),
+        pl.col('Alarm Time').str.strptime(pl.Datetime, '%Y-%m-%d %H:%M:%S').alias('START TIME'),
         pl.col('Alarm Text')
     ])
 
-    # ADD CHECKS FOR PREVIOUS SIMILAR TICKETS - MARKED BY PARENT MYCOM SIMILAR TICKET
-    # MAYBE GROUP IT AS WELL? SO 1 VALIDATION ONLY???
     grouped = (
         spliced.sort('START TIME', descending=True)
         .group_by('site_code')
