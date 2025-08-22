@@ -5,6 +5,7 @@ import io
 import plotly.express as px
 from pygwalker.api.streamlit import init_streamlit_comm, StreamlitRenderer
 import streamlit.user_info
+import plotly.graph_objects as go
 
 # Silence Streamlit deprecated user warning
 streamlit.user_info.maybe_show_deprecated_user_warning = lambda: None
@@ -29,8 +30,10 @@ def validate_csv(uploaded_file, required_cols):
 
 
 def process_tickets(daily_file, tickets_file):
+
     daily_tickets = validate_csv(daily_file, ['short_description', 'ALARMS'])
     tickets = validate_csv(tickets_file, ['Controlling Object Name', 'Alarm Time', 'Alarm Text'])
+
 
     daily_tickets = daily_tickets.with_columns(
         pl.col('short_description')
@@ -41,7 +44,7 @@ def process_tickets(daily_file, tickets_file):
 
     spliced = tickets.select([
         pl.col('Controlling Object Name').str.strip_chars().alias('site_code'),
-        pl.col('Alarm Time').str.strptime(pl.Datetime, '%Y-%m-%d %H:%M:%S').alias('START TIME'),
+        pl.col('Origin Alarm Time').str.strptime(pl.Datetime, '%Y-%m-%d %H:%M:%S %z').alias('START TIME'),
         pl.col('Alarm Text')
     ])
 
@@ -134,6 +137,7 @@ def main():
         text-align: center;
     }
     </style>
+
     """, unsafe_allow_html=True)
 
     st.title("🎫 Ticket Validation Tool")
@@ -239,7 +243,8 @@ def main():
                 autosize=True,
                 height=560,
                 margin=dict(t=140, b=40, l=10, r=40),
-                legend=dict(orientation="v", y=1, x=0.6, xanchor="left", font=dict(color=text_color)
+                legend=dict(orientation="v", y=1, x=0.61, xanchor="left", font=dict(color=text_color)
+
                 ),
                 paper_bgcolor=bg_color,
                 plot_bgcolor=bg_color
@@ -308,7 +313,26 @@ def main():
             ascending = sort_order == "Ascending"
             sorted_tabular = tabular.sort_values(by=sort_column, ascending=ascending)
 
-            st.dataframe(sorted_tabular, use_container_width=True)
+            fig = go.Figure(data=[go.Table(
+                header=dict(
+                    values=list(sorted_tabular.columns),
+                    fill_color="lightgrey",
+                    align="center",
+                    font=dict(color="black", size=13)
+                ),
+                cells=dict(
+                    values=[sorted_tabular[col] for col in sorted_tabular.columns],
+                    align="center"
+                )
+            )])
+
+            fig.update_layout(
+                height=500,
+                margin=dict(l=10, r=10, t=10, b=10)
+            )
+
+            st.plotly_chart(fig, use_container_width=True)
+
 
     st.markdown("---")
     st.subheader("🧠 Explore Your Data (Interactive)")
