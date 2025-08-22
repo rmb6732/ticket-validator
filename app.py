@@ -44,7 +44,7 @@ def process_tickets(daily_file, tickets_file):
 
     spliced = tickets.select([
         pl.col('Controlling Object Name').str.strip_chars().alias('site_code'),
-        pl.col('Origin Alarm Time').str.strptime(pl.Datetime, '%Y-%m-%d %H:%M:%S %z').alias('START TIME'),
+        pl.col('Alarm Time').str.strptime(pl.Datetime, '%Y-%m-%d %H:%M:%S').alias('START TIME'),
         pl.col('Alarm Text')
     ])
 
