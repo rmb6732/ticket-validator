@@ -17,6 +17,10 @@ def validate_csv(uploaded_file, required_cols):
         raise ValueError(f"{uploaded_file.name} is not a valid .csv file.")
 
     df = pl.read_csv(uploaded_file).lazy()
+    trimmed_names = {col: col.strip() for col in df.columns}
+    df = df.rename(trimmed_names)
+
+
     col_names = [c.lower().strip() for c in df.collect_schema().names()]
     missing_cols = [col for col in required_cols if col.lower() not in col_names]
     if missing_cols:
@@ -26,8 +30,10 @@ def validate_csv(uploaded_file, required_cols):
 
 
 def process_tickets(daily_file, tickets_file):
-    daily_tickets = validate_csv(daily_file, ['short_description'])
-    tickets = validate_csv(tickets_file, ['Controlling Object Name', 'Origin Alarm Time', 'Alarm Text'])
+
+    daily_tickets = validate_csv(daily_file, ['short_description', 'ALARMS'])
+    tickets = validate_csv(tickets_file, ['Controlling Object Name', 'Alarm Time', 'Alarm Text'])
+
 
     daily_tickets = daily_tickets.with_columns(
         pl.col('short_description')
@@ -62,13 +68,6 @@ def process_tickets(daily_file, tickets_file):
         .alias('VALIDATION')
     ])
 
-    merged = merged.with_columns(
-        pl.col('START TIME')
-        .dt.convert_time_zone('+08:00')
-        .dt.strftime('%Y-%m-%d %H:%M:%S %:z')
-        .alias('START TIME')
-    )
-
     merged = merged.with_columns([
         pl.when(pl.col('VALIDATION') == 'INVALID')
         .then(None)
@@ -99,7 +98,7 @@ def main():
     st.set_page_config(page_title="Ticket Validator", layout="wide")
     init_streamlit_comm()
 
-    '''st.markdown("""
+    st.markdown("""
     <style>
     /* Center align headers and content for the tabular data */
     .stDataFrame [data-testid='stDataFrame'] table {
@@ -138,7 +137,8 @@ def main():
         text-align: center;
     }
     </style>
-    """, unsafe_allow_html=True)'''
+
+    """, unsafe_allow_html=True)
 
     st.title("🎫 Ticket Validation Tool")
     st.markdown("Upload **Daily Tickets** and **Tickets** CSV files to process validation.")
@@ -244,6 +244,7 @@ def main():
                 height=560,
                 margin=dict(t=140, b=40, l=10, r=40),
                 legend=dict(orientation="v", y=1, x=0.61, xanchor="left", font=dict(color=text_color)
+
                 ),
                 paper_bgcolor=bg_color,
                 plot_bgcolor=bg_color
@@ -312,10 +313,6 @@ def main():
             ascending = sort_order == "Ascending"
             sorted_tabular = tabular.sort_values(by=sort_column, ascending=ascending)
 
-            #st.dataframe(sorted_tabular, use_container_width=True)
-
-            #testing plotly table
-
             fig = go.Figure(data=[go.Table(
                 header=dict(
                     values=list(sorted_tabular.columns),
@@ -335,6 +332,7 @@ def main():
             )
 
             st.plotly_chart(fig, use_container_width=True)
+
 
     st.markdown("---")
     st.subheader("🧠 Explore Your Data (Interactive)")
