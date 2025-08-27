@@ -23,6 +23,7 @@ def validate_csv(uploaded_file, required_cols):
 
     col_names = [c.lower().strip() for c in df.collect_schema().names()]
     missing_cols = [col for col in required_cols if col.lower() not in col_names]
+    print(df.collect_schema().names())
     if missing_cols:
         raise ValueError(f"❌ Missing required columns: {', '.join(missing_cols)}")
 
@@ -32,7 +33,7 @@ def validate_csv(uploaded_file, required_cols):
 def process_tickets(daily_file, tickets_file):
 
     daily_tickets = validate_csv(daily_file, ['short_description', 'ALARMS'])
-    tickets = validate_csv(tickets_file, ['Controlling Object Name', 'Alarm Time', 'Alarm Text'])
+    tickets = validate_csv(tickets_file, ['Notification ID', 'Controlling Object Name', 'Alarm Time', 'Alarm Text'])
 
 
     daily_tickets = daily_tickets.with_columns(
@@ -43,6 +44,7 @@ def process_tickets(daily_file, tickets_file):
     )
 
     spliced = tickets.select([
+        pl.col('Notification ID'),
         pl.col('Controlling Object Name').str.strip_chars().alias('site_code'),
         pl.col('Alarm Time').str.strptime(pl.Datetime, '%Y-%m-%d %H:%M:%S').alias('START TIME'),
         pl.col('Alarm Text')
@@ -53,7 +55,8 @@ def process_tickets(daily_file, tickets_file):
         .group_by('site_code')
         .agg([
             pl.col('Alarm Text').first(),
-            pl.col('START TIME').first()
+            pl.col('START TIME').first(),
+            pl.col('Notification ID').first()
         ])
     )
 
@@ -78,7 +81,7 @@ def process_tickets(daily_file, tickets_file):
 
     final_set = merged.select([
         'number', 'opened_at', 'short_description', 'sys_updated_on',
-        'ALARMS', 'VALIDATION', 'START TIME', 'SITE CODE'
+        'ALARMS', 'VALIDATION', 'START TIME', 'SITE CODE', 'Notification ID'
     ]).collect()
 
     return final_set.to_pandas()
