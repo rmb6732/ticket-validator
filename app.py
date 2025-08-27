@@ -17,7 +17,7 @@ def validate_csv(uploaded_file, required_cols):
         raise ValueError(f"{uploaded_file.name} is not a valid .csv file.")
 
     df = pl.read_csv(uploaded_file).lazy()
-    trimmed_names = {col: col.strip() for col in df.columns}
+    trimmed_names = {col: col.strip() for col in df.collect_schema().names()}
     df = df.rename(trimmed_names)
 
 
@@ -93,6 +93,10 @@ def get_unique(df):
     ).collect()
     return grouped.to_pandas()
 
+def get_valid(df):
+	df = pl.from_pandas(df)
+	filtered = df.lazy().filter(pl.col('VALIDATION') == 'VALID').collect()
+	return filtered.to_pandas()
 
 def main():
     st.set_page_config(page_title="Ticket Validator", layout="wide")
@@ -145,9 +149,9 @@ def main():
 
     col1, col2 = st.columns(2)
     with col1:
-        daily_file = st.file_uploader("📎 Upload Daily Tickets (.csv)", type=['csv'], key="daily")
+        daily_file = st.file_uploader("📎 Upload Daily Tickets (.csv) - AUTO-GENERATED DATA FROM GOOGLE SHEET", type=['csv'], key="daily")
     with col2:
-        tickets_file = st.file_uploader("📎 Upload Tickets (.csv)", type=['csv'], key="tickets")
+        tickets_file = st.file_uploader("📎 Upload Tickets (.csv) - CSV EXPORT FROM NMS", type=['csv'], key="tickets")
 
     if daily_file is None or tickets_file is None:
         st.info("Please upload **both** CSV files to proceed.")
@@ -179,13 +183,16 @@ def main():
 
     # PIE CHART & TABULAR
     df = st.session_state.df_pandas
-    tab_pie, tab_tabular = st.tabs(["PIE CHART", "TABULAR"])
+    tab_pie, tab_tabular, tab_valid = st.tabs(["PIE CHART", "AGGREGATED TABLE", "VALID ROWS"])
 
     if "VALIDATION" not in df.columns:
         with tab_pie:
             st.warning("No `VALIDATION` column found. Make sure the pipeline creates it first.")
         with tab_tabular:
             st.info("Tabular view coming soon.")
+        with tab_valid:
+            st.warning("No `VALIDATION` column found. Make sure the pipeline creates it first.")
+
     else:
         order = ["VALID", "INVALID", "NOT IN NMS"]
         counts = (
@@ -332,6 +339,10 @@ def main():
             )
 
             st.plotly_chart(fig, use_container_width=True)
+
+        with tab_valid:
+            valid_df = get_valid(df)
+            st.dataframe(valid_df)
 
 
     st.markdown("---")
