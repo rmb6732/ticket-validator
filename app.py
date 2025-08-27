@@ -17,12 +17,13 @@ def validate_csv(uploaded_file, required_cols):
         raise ValueError(f"{uploaded_file.name} is not a valid .csv file.")
 
     df = pl.read_csv(uploaded_file).lazy()
-    trimmed_names = {col: col.strip() for col in df.columns}
+    trimmed_names = {col: col.strip() for col in df.collect_schema().names()}
     df = df.rename(trimmed_names)
 
 
     col_names = [c.lower().strip() for c in df.collect_schema().names()]
     missing_cols = [col for col in required_cols if col.lower() not in col_names]
+    print(df.collect_schema().names())
     if missing_cols:
         raise ValueError(f"❌ Missing required columns: {', '.join(missing_cols)}")
 
@@ -32,7 +33,7 @@ def validate_csv(uploaded_file, required_cols):
 def process_tickets(daily_file, tickets_file):
 
     daily_tickets = validate_csv(daily_file, ['short_description', 'ALARMS'])
-    tickets = validate_csv(tickets_file, ['Controlling Object Name', 'Alarm Time', 'Alarm Text'])
+    tickets = validate_csv(tickets_file, ['Notification ID', 'Controlling Object Name', 'Alarm Time', 'Alarm Text'])
 
 
     daily_tickets = daily_tickets.with_columns(
@@ -43,6 +44,7 @@ def process_tickets(daily_file, tickets_file):
     )
 
     spliced = tickets.select([
+        pl.col('Notification ID'),
         pl.col('Controlling Object Name').str.strip_chars().alias('site_code'),
         pl.col('Alarm Time').str.strptime(pl.Datetime, '%Y-%m-%d %H:%M:%S').alias('START TIME'),
         pl.col('Alarm Text')
@@ -53,7 +55,8 @@ def process_tickets(daily_file, tickets_file):
         .group_by('site_code')
         .agg([
             pl.col('Alarm Text').first(),
-            pl.col('START TIME').first()
+            pl.col('START TIME').first(),
+            pl.col('Notification ID').first()
         ])
     )
 
@@ -78,7 +81,7 @@ def process_tickets(daily_file, tickets_file):
 
     final_set = merged.select([
         'number', 'opened_at', 'short_description', 'sys_updated_on',
-        'ALARMS', 'VALIDATION', 'START TIME', 'SITE CODE'
+        'ALARMS', 'VALIDATION', 'START TIME', 'SITE CODE', 'Notification ID'
     ]).collect()
 
     return final_set.to_pandas()
@@ -93,6 +96,10 @@ def get_unique(df):
     ).collect()
     return grouped.to_pandas()
 
+def get_valid(df):
+	df = pl.from_pandas(df)
+	filtered = df.lazy().filter(pl.col('VALIDATION') == 'VALID').collect()
+	return filtered.to_pandas()
 
 def main():
     st.set_page_config(page_title="Ticket Validator", layout="wide")
@@ -145,9 +152,9 @@ def main():
 
     col1, col2 = st.columns(2)
     with col1:
-        daily_file = st.file_uploader("📎 Upload Daily Tickets (.csv)", type=['csv'], key="daily")
+        daily_file = st.file_uploader("📎 Upload Daily Tickets (.csv) - AUTO-GENERATED DATA FROM GOOGLE SHEET", type=['csv'], key="daily")
     with col2:
-        tickets_file = st.file_uploader("📎 Upload Tickets (.csv)", type=['csv'], key="tickets")
+        tickets_file = st.file_uploader("📎 Upload Tickets (.csv) - CSV EXPORT FROM NMS", type=['csv'], key="tickets")
 
     if daily_file is None or tickets_file is None:
         st.info("Please upload **both** CSV files to proceed.")
@@ -179,13 +186,16 @@ def main():
 
     # PIE CHART & TABULAR
     df = st.session_state.df_pandas
-    tab_pie, tab_tabular = st.tabs(["PIE CHART", "TABULAR"])
+    tab_pie, tab_tabular, tab_valid = st.tabs(["PIE CHART", "AGGREGATED TABLE", "VALID ROWS"])
 
     if "VALIDATION" not in df.columns:
         with tab_pie:
             st.warning("No `VALIDATION` column found. Make sure the pipeline creates it first.")
         with tab_tabular:
             st.info("Tabular view coming soon.")
+        with tab_valid:
+            st.warning("No `VALIDATION` column found. Make sure the pipeline creates it first.")
+
     else:
         order = ["VALID", "INVALID", "NOT IN NMS"]
         counts = (
@@ -332,6 +342,10 @@ def main():
             )
 
             st.plotly_chart(fig, use_container_width=True)
+
+        with tab_valid:
+            valid_df = get_valid(df)
+            st.dataframe(valid_df)
 
 
     st.markdown("---")
